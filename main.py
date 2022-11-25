@@ -18,7 +18,7 @@ BALL_DIAM = 36
 BALL_RADIUS = BALL_DIAM / 2
 CUEBALL_START_POS = (888, HEIGHT / 2)
 POCKET_DIAM = 66
-FRICTION = 500
+FRICTION = 400
 FORCE_INCR_RATE = 100
 MAX_FORCE = 15000
 PWR_BAR_DIM = (10, 20)
@@ -262,7 +262,6 @@ while True:
     # show all the bodies/shapes
     # space.debug_draw(draw_options)  
 
-    pg.display.set_caption(f'force={force}')
-    # pg.display.set_caption(f'fps={clock.get_fps() :.1f}')
+    pg.display.set_caption(f'fps={clock.get_fps() :.1f}')
     pg.display.flip()
     
