@@ -1,29 +1,35 @@
 # std lib
-from math import degrees, radians, atan2, cos, sin, ceil
+from math import degrees, radians, atan2, cos, sin, ceil, sqrt
 
 # reqs
 import pygame as pg
 import pymunk as pm
 import pymunk.pygame_util as pgu
 
-pg.init()
 
+# game constants
 WIDTH = 1200
 HEIGHT = 678
 FPS = 120
-
-win = pg.display.set_mode((WIDTH, HEIGHT))
-clock = pg.time.Clock()
-
-# game constants
-ELASTICITY = 0.8
-BALL_MASS = 3
-DIAM = 36
-FRICTION = 300
+PANEL_HEIGHT = 50
+ELASTICITY = 0.85
+BALL_MASS = 4
+BALL_DIAM = 36
+BALL_RADIUS = BALL_DIAM / 2
+CUEBALL_START_POS = (888, HEIGHT / 2)
+POCKET_DIAM = 66
+FRICTION = 500
 FORCE_INCR_RATE = 100
-MAX_FORCE = 10000
-POWER_BARS = 5
-POWER_INCR = int(MAX_FORCE // POWER_BARS)
+MAX_FORCE = 15000
+PWR_BAR_DIM = (10, 20)
+PWR_BAR_BUFF = 4
+PWR_BARS = 5  # should divide MAX_FORCE into whole parts
+PWR_BAR_XOFF = -34
+PWR_INCR = int(MAX_FORCE // PWR_BARS)
+
+pg.init()
+win = pg.display.set_mode((WIDTH, HEIGHT + PANEL_HEIGHT))
+clock = pg.time.Clock()
 
 
 # game variables
@@ -31,6 +37,8 @@ force = 0
 force_direction = 1
 shot_in_progress = False
 powering_up = False
+cueball_potted = False
+potted_balls = []
 
 
 # load images
@@ -78,15 +86,27 @@ rows = 5
 for col in range(5):
     for row in range(rows):
         pos = (
-            250 + (col * (DIAM - 4)), 
-            267 + (row * (DIAM + 1)) + (col * (DIAM / 2))
+            250 + (col * (BALL_DIAM - 4)), 
+            267 + (row * BALL_DIAM + col * BALL_RADIUS)
         )
-        new_ball = create_ball(DIAM / 2, pos)
+        new_ball = create_ball(BALL_RADIUS, pos)
         balls.append(new_ball)
     rows -= 1
 # add cueball last; maintain insertion order
-cue_ball = create_ball(DIAM / 2, (888, HEIGHT / 2))
+cue_ball = create_ball(BALL_RADIUS, CUEBALL_START_POS)
 balls.append(cue_ball)
+
+
+
+#create six pockets on table
+pockets = [
+  (55, 63),
+  (592, 48),
+  (1134, 64),
+  (55, 616),
+  (592, 629),
+  (1134, 616)
+]
 
 #create pool table cushions
 cushions = [
@@ -99,6 +119,8 @@ cushions = [
 ]
 for c in cushions:
     create_cushion(c)
+
+
 
 ##########################
 class Cue:
@@ -127,19 +149,12 @@ class Cue:
 # create pool cue
 cue = Cue(balls[-1].body.position)  # cueball is last in list
 
+
+
 # power bars for the cue stick
-power_bar = pg.Surface((10, 20))
+power_bar = pg.Surface(PWR_BAR_DIM)
 power_bar.fill('red')
 
-# #create six pockets on table
-# pockets = [
-#   (55, 63),
-#   (592, 48),
-#   (1134, 64),
-#   (55, 616),
-#   (592, 629),
-#   (1134, 616)
-# ]
 
 #
 # GAME LOOP
@@ -156,17 +171,35 @@ while True:
             pg.quit()
             exit()
 
-        if not shot_in_progress:
-            if e.type == pg.MOUSEBUTTONDOWN:
-                powering_up = True
-            if e.type == pg.MOUSEBUTTONUP:
-                powering_up = False
+        if e.type == pg.MOUSEBUTTONDOWN and not shot_in_progress:
+            powering_up = True
+        if e.type == pg.MOUSEBUTTONUP and powering_up:
+            powering_up = False
 
     # DRAW
 
     # table
     win.fill('black')
     win.blit(bg_table, (0,0))
+
+    # check if balls potted
+    for i, ball in enumerate(balls):
+        for pocket in pockets:
+            ball_x_dist = abs(ball.body.position[0] - pocket[0])
+            ball_y_dist = abs(ball.body.position[1] - pocket[1])
+            ball_dist = sqrt(ball_x_dist ** 2 + ball_y_dist ** 2)
+            if ball_dist < BALL_RADIUS:
+                # check if cue ball
+                if i == len(balls) - 1:  # last ball = cue ball
+                    # hide the ball off screen until not shot_in_progress
+                    cueball_potted = True
+                    ball.body.position = (-100, -100)
+                    ball.body.velocity = (0.0, 0.0)
+                else:
+                    space.remove(ball.body)
+                    balls.remove(ball)
+                    potted_balls.append(ball_images[i])
+                    ball_images.pop(i)
 
     # pool balls
     for i, ball in enumerate(balls):
@@ -182,9 +215,15 @@ while True:
         if int(ball.body.velocity[0]) != 0 or int(ball.body.velocity[1]) != 0:
             shot_in_progress = True
 
-    # cue stick - 
-        # update cue angle from mouse_pos wrt cueball if balls not in motion
+    # cue stick        
     if not shot_in_progress:
+        # reposition cueball if potted
+        if cueball_potted:
+            # reposition
+            balls[-1].body.position = CUEBALL_START_POS
+            cueball_potted = False
+
+        # update cue angle from mouse_pos wrt cueball if balls not in motion
         mouse_pos = pg.mouse.get_pos()
         x_dist = balls[-1].body.position[0] - mouse_pos[0]  # balls[-1] = cue ball
         y_dist = -(balls[-1].body.position[1] - mouse_pos[1])  # y-axis is reversed in pg
@@ -199,15 +238,26 @@ while True:
         # create a 'meter' that loops between min and max
         if force >= MAX_FORCE or force <= 0:
             force_direction *= -1
+
         # draw power bars
-        for b in range(ceil(force / POWER_INCR)):
-            pass
+        for b in range(ceil(force / PWR_INCR)):
+            win.blit(power_bar,
+                (balls[-1].body.position[0] + PWR_BAR_XOFF + (b * (PWR_BAR_DIM[0] + PWR_BAR_BUFF)),
+                balls[-1].body.position[1] + 30)
+            )
 
     elif not powering_up and not shot_in_progress:
         x_impulse = -cos(radians(cue_angle))  # direction-vectors for applying force
         y_impulse = sin(radians(cue_angle))  
         balls[-1].body.apply_impulse_at_local_point((force * x_impulse, force * y_impulse), (0, 0))  # (0, 0) is rel. center of body
         force = 0
+
+    # draw bottom panel
+    pg.draw.rect(win, 'black', (0, HEIGHT, WIDTH, PANEL_HEIGHT))
+
+    # draw potted balls in bottom panel
+    for i, ball in enumerate(potted_balls):
+        win.blit(ball, (10 + (i * 50), HEIGHT + 10))
 
     # show all the bodies/shapes
     # space.debug_draw(draw_options)  
