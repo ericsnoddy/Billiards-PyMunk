@@ -94,13 +94,13 @@ for col in range(5):
         new_ball = create_ball(BALL_RADIUS, pos)
         balls.append(new_ball)
     rows -= 1
-# add cueball last; maintain insertion order
+# add cueball last; important to maintain this insertion order
 cue_ball = create_ball(BALL_RADIUS, CUEBALL_START_POS)
 balls.append(cue_ball)
 
 
 
-#create six pockets on table
+# pocket center coords 
 pockets = [
   (55, 63),
   (592, 48),
@@ -110,7 +110,7 @@ pockets = [
   (1134, 616)
 ]
 
-#create pool table cushions
+# cushion vertices
 cushions = [
   [(88, 56), (109, 77), (555, 77), (564, 56)],
   [(621, 56), (630, 77), (1081, 77), (1102, 56)],
@@ -141,7 +141,7 @@ class Cue:
     def draw(self, surf):
         self.image = pg.transform.rotate(self.ORIG_IMG, self.angle)
         # cue image has an added translucent length equal to cue length, allowing rotation about its center
-        # but we have to offset the translucent bit by half its dimensions
+        # so we have to offset the translucent bit by half its dimensions
         surf.blit(self.image,
             (self.rect.centerx - self.image.get_width() / 2,
             self.rect.centery - self.image.get_height() / 2)
@@ -178,8 +178,7 @@ while True:
         if e.type == pg.MOUSEBUTTONUP and powering_up:
             powering_up = False
 
-    # DRAW
-
+    # DRAW AND UPDATE
     # table
     win.fill('black')
     win.blit(bg_table, (0,0))
@@ -193,7 +192,7 @@ while True:
             if ball_dist < BALL_RADIUS:
                 # check if cue ball
                 if i == len(balls) - 1:  # last ball = cue ball
-                    # hide the ball off screen until not shot_in_progress
+                    # hide the ball off screen (see repositioning logic below)
                     cueball_potted = True
                     ball.body.position = (-100, -100)
                     ball.body.velocity = (0.0, 0.0)
