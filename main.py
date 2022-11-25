@@ -12,18 +12,20 @@ WIDTH = 1200
 HEIGHT = 678
 FPS = 120
 PANEL_HEIGHT = 50
+
 ELASTICITY = 0.85
 BALL_MASS = 4
 BALL_DIAM = 36
 BALL_RADIUS = BALL_DIAM / 2
-CUEBALL_START_POS = (888, HEIGHT / 2)
 POCKET_DIAM = 66
 FRICTION = 400
-FORCE_INCR_RATE = 100
 MAX_FORCE = 15000
+
+CUEBALL_START_POS = (888, HEIGHT / 2)
 PWR_BAR_DIM = (10, 20)
-PWR_BAR_BUFF = 4
+PWR_BAR_PAD = 4
 PWR_BARS = 5  # should divide MAX_FORCE into whole parts
+PWR_UP_RATE = 100
 PWR_BAR_XOFF = -34
 PWR_INCR = int(MAX_FORCE // PWR_BARS)
 
@@ -234,7 +236,7 @@ while True:
 
     # power up the cue stick
     if powering_up:
-        force += FORCE_INCR_RATE * force_direction
+        force += PWR_UP_RATE * force_direction
         # create a 'meter' that loops between min and max
         if force >= MAX_FORCE or force <= 0:
             force_direction *= -1
@@ -242,7 +244,7 @@ while True:
         # draw power bars
         for b in range(ceil(force / PWR_INCR)):
             win.blit(power_bar,
-                (balls[-1].body.position[0] + PWR_BAR_XOFF + (b * (PWR_BAR_DIM[0] + PWR_BAR_BUFF)),
+                (balls[-1].body.position[0] + PWR_BAR_XOFF + (b * (PWR_BAR_DIM[0] + PWR_BAR_PAD)),
                 balls[-1].body.position[1] + 30)
             )
 
